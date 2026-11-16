@@ -62,3 +62,8 @@ __pycache__/
 venv/
 env/
 .DS_Store
+
+# -- our pipeline outputs ------------------------------------------------------------------------
+# dead.csv, team.csv and the merged submission are labels for the whole match; regenerate them.
+outputs/*
+!outputs/.gitkeep
