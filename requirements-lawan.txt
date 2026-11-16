@@ -1,0 +1,10 @@
+# Team Lawan: exact versions our submission was built with (Python 3.12.10).
+#   python -m venv .venv
+#   .venv/Scripts/python -m pip install -r requirements-lawan.txt     (Windows)
+#   .venv/bin/python -m pip install -r requirements-lawan.txt         (macOS / Linux)
+#
+# Add the tree model's packages here, pinned with ==, when it lands (task M01).
+numpy==2.5.5
+pandas==3.1.1
+python-dateutil==4.0.0
+tzdata==2026.6

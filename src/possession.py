@@ -2,7 +2,8 @@
 
 Contract: columns `frame,team`, 199,319 rows, frame 0..199318 in order, team = H, A or X.
 
-    python src/possession.py                          # tracking only
+    python src/possession.py                          # tracking + Smart Tagging set pieces (v2)
+    python src/possession.py --no-set-pieces          # v1: tracking only
     python src/possession.py --dead outputs/dead.csv  # also use Ilham's stoppages (better restarts)
 
 Idea
@@ -27,7 +28,12 @@ This model is a small state machine instead:
    lands where the opponent first got the ball, not HOLD_FRAMES later.
 5. Restarts (only with --dead). When a stoppage ends, the state is cleared; the first team to show
    TOUCH_FRAMES of evidence takes the ball, back-dated to the restart frame.
-6. Clean-up. A possession shorter than MIN_SPELL_FRAMES sandwiched between two spells of the other
+6. Set pieces (v2, task P04). Smart Tagging (Metrica's automatic tagging) marks each set piece as
+   a ~5 s window tagged with the team taking it. Inside that window the tagged team holds the ball
+   and the other team's evidence is ignored, so the restarting team is right even when an opponent
+   stands next to the ball (throw-ins, free kicks). After a --dead stoppage, the set piece that ends
+   it names the new holder.
+7. Clean-up. A possession shorter than MIN_SPELL_FRAMES sandwiched between two spells of the other
    team is absorbed into them (A-H-A -> A-A-A).
 
 Missing-ball gaps: by default the holder's label is kept. Under spellF1 an X is filled with the
@@ -60,6 +66,7 @@ HOLD_FRAMES = 10          # frames (0.4 s) of evidence for the other team to tak
 TOUCH_FRAMES = 3          # frames: minimum evidence per player for the "completed pass" rule
 CHALLENGE_WINDOW = 75     # frames (3 s): evidence older than this no longer counts
 MIN_SPELL_FRAMES = 25     # frames (1 s): shorter sandwiched possessions are absorbed
+SET_PIECE_HOLD = 125      # frames (5 s): protect the restarting team for at most this long
 X_GAP_FRAMES = 50         # frames (2 s): with --x-on-gaps, longer ball gaps are written as X
 
 GRADED = ((11185, 90652), (110808, 190198))  # half-open [start, stop), from DATA.md
@@ -178,8 +185,36 @@ def control_evidence(players, ball, slot_team):
     return team, slot
 
 
-def run_state_machine(ev_team, ev_slot, start, stop, dead=None):
-    """Possession per frame in [start, stop): HOME/AWAY, NONE before anyone is known."""
+def set_piece_owner(n_frames, home, away):
+    """Per frame: the team taking a set piece (HOME/AWAY), NONE elsewhere. From Smart Tagging.
+
+    Smart Tagging is Metrica's AUTOMATIC annotation (DATA.md), not human data about the game. Each
+    SET PIECES instance (throw-in, corner, goal kick, free kick, kick-off) is a ~5 s window around
+    a restart, tagged with the team taking it. Instances tagged N/A are skipped. Only the first
+    SET_PIECE_HOLD frames of a window are protected, so a quick turnover after the restart still
+    switches through the normal challenge rules.
+    """
+    from load_smart_tagging import load as load_tagging
+    owner = np.full(n_frames, NONE, dtype=np.int8)
+    names = {home.strip().lower(): HOME, away.strip().lower(): AWAY}
+    for event in load_tagging():
+        if (event["code"] or "").strip().lower() != "set pieces":
+            continue
+        team = names.get((event["tags"].get("Team") or "").strip().lower())
+        if team is None:
+            continue
+        a = max(0, event["start_frame"])
+        b = min(n_frames, max(event["end_frame"], a + 1), a + SET_PIECE_HOLD)
+        owner[a:b] = team
+    return owner
+
+
+def run_state_machine(ev_team, ev_slot, start, stop, dead=None, restart_owner=None):
+    """Possession per frame in [start, stop): HOME/AWAY, NONE before anyone is known.
+
+    restart_owner (v2): inside a set-piece window the tagged team holds the ball and the other
+    team's evidence is ignored; normal challenge rules resume when the window ends.
+    """
     out = np.full(stop - start, NONE, dtype=np.int8)
     holder = NONE
     ch_team, ch_first, ch_last, ch_frames, ch_slots = NONE, 0, 0, 0, {}
@@ -197,9 +232,22 @@ def run_state_machine(ev_team, ev_slot, start, stop, dead=None):
                 j += 1
             out[f - start:j - start] = holder
             holder = NONE
+            if restart_owner is not None:
+                tagged = restart_owner[f:j][restart_owner[f:j] != NONE]
+                if len(tagged):
+                    holder = int(tagged[-1])  # the set piece that ends this stoppage
             ch_team, ch_first, ch_last, ch_frames, ch_slots = reset_challenge()
             restart_from = j
             f = j
+            continue
+
+        if restart_owner is not None and restart_owner[f] != NONE:
+            if holder != restart_owner[f]:
+                holder = int(restart_owner[f])
+                restart_from = f
+            ch_team, ch_first, ch_last, ch_frames, ch_slots = reset_challenge()
+            out[f - start] = holder
+            f += 1
             continue
 
         t = ev_team[f]
@@ -258,7 +306,8 @@ def absorb_short_spells(codes, min_len, dead=None, offset=0):
     return codes
 
 
-def build(dead=None, x_on_gaps=False, players=None, ball=None, slot_team=None, n_frames=None):
+def build(dead=None, x_on_gaps=False, players=None, ball=None, slot_team=None, n_frames=None,
+          restart_owner=None):
     """Full-length team labels as an array of 'H'/'A'/'X'."""
     if players is None:
         players, ball, slot_team = load_tracking()
@@ -269,7 +318,7 @@ def build(dead=None, x_on_gaps=False, players=None, ball=None, slot_team=None, n
     codes = np.full(n_frames, NONE, dtype=np.int8)
     for start, stop in GRADED:
         stop = min(stop, n_frames)
-        half = run_state_machine(ev_team, ev_slot, start, stop, dead)
+        half = run_state_machine(ev_team, ev_slot, start, stop, dead, restart_owner)
         codes[start:stop] = absorb_short_spells(half, MIN_SPELL_FRAMES, dead, start)
 
     labels = np.where(codes == HOME, "H", np.where(codes == AWAY, "A", "X")).astype("<U1")
@@ -307,6 +356,8 @@ def main():
                         help="write X on missing-ball gaps longer than {} frames".format(X_GAP_FRAMES))
     parser.add_argument("--refresh-cache", action="store_true", help="re-read the raw ATD")
     parser.add_argument("--cache", default=CACHE_DEFAULT, help="parsed-tracking cache file")
+    parser.add_argument("--no-set-pieces", action="store_true",
+                        help="v1 behaviour: ignore Smart Tagging set pieces at restarts")
     args = parser.parse_args()
 
     t0 = time.time()
@@ -314,7 +365,12 @@ def main():
     print("H = {}, A = {}".format(home, away))
     players, ball, slot_team = load_tracking(args.cache, refresh=args.refresh_cache)
     dead = read_dead(args.dead, len(ball))
-    labels, ev_team = build(dead, args.x_on_gaps, players, ball, slot_team)
+    restart_owner = None
+    if not args.no_set_pieces:
+        restart_owner = set_piece_owner(len(ball), home, away)
+        print("set pieces: {} frames tagged H, {} tagged A".format(
+            int(np.sum(restart_owner == HOME)), int(np.sum(restart_owner == AWAY))))
+    labels, ev_team = build(dead, args.x_on_gaps, players, ball, slot_team, restart_owner=restart_owner)
     write_team_csv(args.out, labels)
     describe(labels, ev_team)
     print("wrote {} in {:.0f}s".format(os.path.relpath(args.out, ROOT), time.time() - t0))

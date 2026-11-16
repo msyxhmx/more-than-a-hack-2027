@@ -33,6 +33,18 @@ self-test on random labels.
 The main approach was chosen on leave-one-game-out results on the open Bundesliga games, never by
 comparing versions on the public 5 minutes.
 
+## Regenerate the submission (one command)
+
+```bash
+python -m venv .venv
+.venv/Scripts/python -m pip install -r requirements-lawan.txt   # macOS/Linux: .venv/bin/python
+.venv/Scripts/python src/run.py --team-name Lawan
+```
+
+`run.py` reads `data/` (or `MTAH_DATA_DIR`), runs the method in `DEFAULT_METHOD`, merges, validates
+and prints the file's SHA-256. `--method rules|model|baseline` picks one explicitly. The tree model
+plugs in as `src/model.py` with `main(out_dir)`; then set `DEFAULT_METHOD = "model"`.
+
 ## Merge rule
 
 1. Outside the graded halves (frames 11,185–90,651 and 110,808–190,197) → `X`
