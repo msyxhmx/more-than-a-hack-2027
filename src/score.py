@@ -3,6 +3,7 @@
     python src/score.py                                   # outputs/dead.csv + outputs/team.csv
     python src/score.py --sub outputs/<team_name>.csv     # also validate the real submission file
     python src/score.py --log "possession v1"             # append the scores to outputs/score_log.csv
+    python src/score.py --lanes outputs/model             # lanes from another folder (tree model)
 
 What it prints
 --------------
@@ -30,58 +31,13 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, "evaluation"))
-import possession_metrics as pm  # noqa: E402
-from games import GAME, GAMES  # noqa: E402
+sys.path.insert(0, HERE)
+from lanes import (GRADED, N_FRAMES, OUT, check_lane, fallback_lanes, merge,  # noqa: E402
+                   pm)
 
-N_FRAMES = GAMES[GAME]["n_video_frames"]
-GRADED = ((11185, 90652), (110808, 190198))  # half-open, from DATA.md / src/README.md
-OUT = os.path.join(ROOT, "outputs")
-FALLBACK = os.path.join(ROOT, "evaluation", "results", "baseline_smooth50.csv")
-
-
-# -- lane files ----------------------------------------------------------------------------------
-
-def check_lane(path, column, allowed):
-    """(values, None) if the file meets the contract, else (None, reason)."""
-    if not os.path.isfile(path):
-        return None, "missing"
-    try:
-        table = pd.read_csv(path, dtype={column: "object"})
-    except Exception as error:
-        return None, "unreadable: {}".format(error)
-    table.columns = [str(c).strip().lower() for c in table.columns]
-    if list(table.columns) != ["frame", column]:
-        return None, "columns {} != ['frame', '{}']".format(list(table.columns), column)
-    if len(table) != N_FRAMES:
-        return None, "{} rows != {}".format(len(table), N_FRAMES)
-    if not np.array_equal(table["frame"].values, np.arange(N_FRAMES)):
-        return None, "frame column is not 0..{} in order".format(N_FRAMES - 1)
-    values = table[column]
-    if values.isna().any():
-        return None, "{} blank cells".format(int(values.isna().sum()))
-    values = np.array([str(v).strip().upper() for v in values], dtype=object)
-    bad = sorted(set(values) - set(allowed))
-    if bad:
-        return None, "values outside {}: {}".format(sorted(allowed), bad[:5])
-    return values, None
-
-
-def fallback_lanes():
-    labels = pm.read_label_csv(FALLBACK)["label"].values.astype(str)
-    dead = np.where(labels == "D", "1", "0").astype(object)
-    team = np.where(np.isin(labels, ["H", "A"]), labels, "X").astype(object)
-    return dead, team
-
-
-def merge(dead, team):
-    """The contract's merge rule, as label strings."""
-    labels = np.full(N_FRAMES, "X", dtype=object)
-    for start, stop in GRADED:
-        labels[start:stop] = team[start:stop]
-        labels[start:stop][dead[start:stop] == "1"] = "D"
-    return labels
+# The tree model writes both lanes into one folder via lanes.write_lanes(); score it with
+# --lanes outputs/model. Comparing it with the rules on these 5 minutes is NOT allowed: the
+# choice of main approach comes from the leave-one-game-out results on the open Bundesliga games.
 
 
 # -- scoring helpers -----------------------------------------------------------------------------
@@ -138,24 +94,31 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dead", default=os.path.join(OUT, "dead.csv"))
     parser.add_argument("--team", default=os.path.join(OUT, "team.csv"))
+    parser.add_argument("--lanes", metavar="DIR",
+                        help="read DIR/dead.csv and DIR/team.csv instead (e.g. outputs/model)")
     parser.add_argument("--sub", help="the real submission file to validate as well")
     parser.add_argument("--log", metavar="VERSION", help="append scores to outputs/score_log.csv")
     args = parser.parse_args()
+    if args.lanes:
+        args.dead = os.path.join(args.lanes, "dead.csv")
+        args.team = os.path.join(args.lanes, "team.csv")
     ok = True
 
     print("1. lane files (contract)")
     base_dead, base_team = fallback_lanes()
     dead, why = check_lane(args.dead, "dead", {"0", "1"})
-    print("   dead.csv  {}".format("OK" if why is None else "FALLBACK to baseline -- " + why))
+    print("   {:<26} {}".format(os.path.relpath(args.dead, ROOT),
+                                  "OK" if why is None else "FALLBACK to baseline -- " + why))
     if why is None:
-        dead_src = "dead.csv"
+        dead_src = os.path.relpath(args.dead, ROOT).replace(os.sep, "/")
     else:
         dead, dead_src = base_dead, "baseline"
         ok &= why == "missing"
     team, why = check_lane(args.team, "team", {"H", "A", "X"})
-    print("   team.csv  {}".format("OK" if why is None else "FALLBACK to baseline -- " + why))
+    print("   {:<26} {}".format(os.path.relpath(args.team, ROOT),
+                                  "OK" if why is None else "FALLBACK to baseline -- " + why))
     if why is None:
-        team_src = "team.csv"
+        team_src = os.path.relpath(args.team, ROOT).replace(os.sep, "/")
     else:
         team, team_src = base_team, "baseline"
         ok &= why == "missing"
