@@ -190,7 +190,7 @@ the same machine give bit-identical output. We also checked the parts that could
 machines, using DFL matches only (`research/py312_bench.log`, and a check on 17 Nov):
 
 - **Python version.** The pinned packages give bit-identical probabilities on Python 3.11 and 3.12.
-- **CPU thread count.** Training with 8 or 2 threads gives the same probabilities and labels, bit
+- **CPU thread count.** Training with 8, 2 or 1 threads gives the same probabilities and labels, bit
   for bit.
 
 A different CPU architecture or operating system has not been tested. If a rebuild there ever
