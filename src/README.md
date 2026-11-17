@@ -26,6 +26,16 @@ contract. The rule model (`possession.py`) and the baseline stay as fallbacks in
     python src/score.py --lanes outputs/model --log "model v1"
     python src/merge.py --team-name <team_name> --lanes outputs/model
 
+The tree model is `src/model.py` (task M01). It trains on the 7 open DFL matches, which
+`src/dfl.py` downloads from a pinned mirror and checks against SHA-256 hashes the first time it
+runs (about 2.7 GB; CC-BY 4.0). Training happens inside every run, so the submission is rebuilt
+from data and code alone, with no saved model file. The research behind it, and the bench it was
+tested on, are in `research/` (start with `research/REPORT.md`).
+
+    python src/check_tracking.py     # PASS / FAIL sanity checks on the match data and model output
+
+`check_tracking.py` prints no numbers, so its output is safe to share.
+
 `src/lanes.py` holds the contract code (frame count, graded halves, lane checks, merge, writers);
 `score.py` and `merge.py` both use it, so they cannot disagree. `python src/lanes.py` runs a
 self-test on random labels.

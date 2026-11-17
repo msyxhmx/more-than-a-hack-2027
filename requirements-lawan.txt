@@ -3,8 +3,12 @@
 #   .venv/Scripts/python -m pip install -r requirements-lawan.txt     (Windows)
 #   .venv/bin/python -m pip install -r requirements-lawan.txt         (macOS / Linux)
 #
-# Add the tree model's packages here, pinned with ==, when it lands (task M01).
+# The tree model (task M01) adds scikit-learn and scipy, with their own dependencies pinned too.
+joblib==1.6.0
 numpy==2.5.5
 pandas==3.1.1
 python-dateutil==4.0.0
+scikit-learn==1.9.1
+scipy==1.17.1
+threadpoolctl==3.8.0
 tzdata==2026.6
