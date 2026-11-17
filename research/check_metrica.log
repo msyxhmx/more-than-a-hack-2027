@@ -1,0 +1,14 @@
+sample game 3: 143761 frames, 35 player columns, halves [(360, 69594), (70089, 143553)]
+  features for training match 1/7 (1s)
+  features for training match 2/7 (2s)
+  features for training match 3/7 (4s)
+  features for training match 4/7 (5s)
+  features for training match 5/7 (6s)
+  features for training match 6/7 (7s)
+  features for training match 7/7 (8s)
+  model trained (71s)
+baseline (nearest player, +-50 vote)     spellF1 0.372  macroF1 0.722  possessions 557
+tree model + decode                      spellF1 0.709  macroF1 0.820  possessions 336
+reference possessions (from events): 348
+on alive frames: same team as reference 0.824, opposite team 0.039
+done in 85s

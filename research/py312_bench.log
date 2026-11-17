@@ -1,0 +1,5 @@
+fold J03WMX  {'spellF1': 0.2273, 'macroF1': 0.893, 'n_gt': 487.0, 'n_pred': 1535.0, 'D_recall': 0.96, 'D_prec': 0.9481, 'team_acc': 0.8934, 'acc_seen': 0.9302, 'acc_unseen': 0.8664}  (58s)
+fold J03WOH  {'spellF1': 0.2531, 'macroF1': 0.9109, 'n_gt': 391.0, 'n_pred': 1450.0, 'D_recall': 0.9647, 'D_prec': 0.9693, 'team_acc': 0.9106, 'acc_seen': 0.9427, 'acc_unseen': 0.897}  (57s)
+fold J03WPY  {'spellF1': 0.2637, 'macroF1': 0.9078, 'n_gt': 395.0, 'n_pred': 1442.0, 'D_recall': 0.9628, 'D_prec': 0.9656, 'team_acc': 0.9136, 'acc_seen': 0.9443, 'acc_unseen': 0.892}  (59s)
+fold J03WR9  {'spellF1': 0.2533, 'macroF1': 0.9184, 'n_gt': 350.0, 'n_pred': 1371.0, 'D_recall': 0.9642, 'D_prec': 0.9716, 'team_acc': 0.9209, 'acc_seen': 0.9436, 'acc_unseen': 0.906}  (64s)
+MEAN train=target test=target feats=all argmax: {'spellF1': 0.2494, 'macroF1': 0.9075, 'n_gt': 405.75, 'n_pred': 1449.5, 'D_recall': 0.9629, 'D_prec': 0.9637, 'team_acc': 0.9096, 'acc_seen': 0.9402, 'acc_unseen': 0.8903}
