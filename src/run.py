@@ -26,7 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import lanes  # noqa: E402
 
-DEFAULT_METHOD = "rules"  # switch to "model" once src/model.py is in the repository (M01)
+DEFAULT_METHOD = "model"  # the submitted file; chosen on held-out DFL matches, never on this match
 
 
 def run_rules():

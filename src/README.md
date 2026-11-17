@@ -23,8 +23,7 @@ write_lanes(labels, "outputs/model")   # labels: 199,319 strings, H / A / D / X
 That writes `outputs/model/dead.csv` and `outputs/model/team.csv` and checks them against the
 contract. The rule model (`possession.py`) and the baseline stay as fallbacks in `outputs/`.
 
-    python src/score.py --lanes outputs/model --log "model v1"
-    python src/merge.py --team-name <team_name> --lanes outputs/model
+    python src/run.py --team-name Lawan        # the whole thing, one command (see below)
 
 The tree model is `src/model.py` (task M01). It trains on the 7 open DFL matches, which
 `src/dfl.py` downloads from a pinned mirror and checks against SHA-256 hashes the first time it
@@ -45,15 +44,19 @@ comparing versions on the public 5 minutes.
 
 ## Regenerate the submission (one command)
 
+Python 3.12, macOS / Linux (on Windows use `.venv\Scripts\python` instead of `.venv/bin/python`):
+
 ```bash
-python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements-lawan.txt   # macOS/Linux: .venv/bin/python
-.venv/Scripts/python src/run.py --team-name Lawan
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements-lawan.txt
+.venv/bin/python src/run.py --team-name Lawan
+python evaluation/validate_submission.py outputs/Lawan.csv
 ```
 
-`run.py` reads `data/` (or `MTAH_DATA_DIR`), runs the method in `DEFAULT_METHOD`, merges, validates
-and prints the file's SHA-256. `--method rules|model|baseline` picks one explicitly. The tree model
-plugs in as `src/model.py` with `main(out_dir)`; then set `DEFAULT_METHOD = "model"`.
+`run.py` reads `data/` (or `MTAH_DATA_DIR`), downloads the 7 DFL training matches on first run
+(about 2.7 GB, checked by SHA-256), trains the tree model, labels the match, merges, validates and
+prints the file's SHA-256. The default method is `model`, which is the submitted file.
+`--method rules|baseline` runs the fallbacks instead.
 
 ## Merge rule
 

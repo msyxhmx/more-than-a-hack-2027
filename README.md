@@ -1,3 +1,14 @@
+> **Team Lawan's submission.** This is a fork of the challenge repository. Our technical document is
+> [Lawan.md](Lawan.md), our code is in [src/](src/README.md), and one command rebuilds the
+> submission from the data bundle:
+>
+> ```bash
+> python3.12 -m venv .venv && .venv/bin/python -m pip install -r requirements-lawan.txt
+> .venv/bin/python src/run.py --team-name Lawan     # -> outputs/Lawan.csv, validated, SHA-256 printed
+> ```
+>
+> Everything below this box is the organisers' original README.
+
 # More than a Hack 2027 — Phase 1: Ball Possession
 
 **Organised by [Metrica Sports](https://metrica-sports.com), [FC Barcelona](https://www.fcbarcelona.com)
